@@ -2,7 +2,7 @@ module github.com/ranulldd/update_manager
 
 go 1.25.4
 
-require github.com/shirou/gopsutil/v4 v4.25.11
+require github.com/shirou/gopsutil/v4 v4.26.1
 
 require (
 	github.com/ebitengine/purego v0.9.1 // indirect
@@ -12,5 +12,5 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 )
