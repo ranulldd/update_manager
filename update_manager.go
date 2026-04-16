@@ -330,7 +330,11 @@ func (manager *updateManagr) doUpdate(data []byte, exePath, prefix, version stri
 	}
 
 	manager.logger.Print("applying update")
-	manager.apply(data, exePath, signature)
+	err = manager.apply(data, exePath, signature)
+	if err != nil {
+		manager.logger.Print("apply err:", err)
+		return err
+	}
 
 	return err
 }
