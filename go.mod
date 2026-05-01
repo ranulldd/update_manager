@@ -2,7 +2,7 @@ module github.com/ranulldd/update_manager
 
 go 1.26.2
 
-require github.com/shirou/gopsutil/v4 v4.26.3
+require github.com/shirou/gopsutil/v4 v4.26.4
 
 require (
 	github.com/ebitengine/purego v0.10.0 // indirect
