@@ -1,6 +1,6 @@
 module github.com/ranulldd/update_manager
 
-go 1.26.2
+go 1.26.3
 
 require github.com/shirou/gopsutil/v4 v4.26.4
 

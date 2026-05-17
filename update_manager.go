@@ -355,6 +355,16 @@ func (manager *updateManagr) AddServer(host string) {
 	manager.hosts = append(manager.hosts, host)
 }
 
+func (manager *updateManagr) DelServer(host string) {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+	for i := len(manager.hosts) - 1; i >= 0; i-- {
+		if manager.hosts[i] == host {
+			manager.hosts = append(manager.hosts[:i], manager.hosts[i+1:]...)
+		}
+	}
+}
+
 func (manager *updateManagr) Run() {
 	manager.once.Do(func() {
 		go func() {
