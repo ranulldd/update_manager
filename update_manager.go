@@ -25,11 +25,14 @@ import (
 )
 
 type updateManagr struct {
-	publicKey crypto.PublicKey
-	aesKey    []byte
-	verifier  Verifier
-	hosts     []string
-	mutex     sync.RWMutex
+	curVersion string
+	interval   time.Duration
+	publicKey  crypto.PublicKey
+	aesKey     []byte
+	verifier   Verifier
+	hosts      []string
+	mutex      sync.RWMutex
+	once       sync.Once
 
 	logger *log.Logger
 }
@@ -63,14 +66,17 @@ func formatVersion(version string) structVersion {
 	return structVersion{verMajor, verMinor, verPatch}
 }
 
-func NewUpdateManager(aeskey []byte, logger *log.Logger) *updateManagr {
+func NewUpdateManager(curVersion string, hosts []string, interval time.Duration, aeskey []byte, logger *log.Logger) *updateManagr {
 	return &updateManagr{
-		publicKey: ed25519.PublicKey{33, 205, 244, 215, 215, 31, 28, 203, 59, 249, 116, 219, 21, 42, 227, 2, 147, 46, 39, 118, 144, 74, 101, 110, 175, 40, 20, 92, 63, 19, 5, 164},
-		aesKey:    aeskey,
-		verifier:  NewECDSAVerifier(),
-		hosts:     []string{},
-		mutex:     sync.RWMutex{},
-		logger:    logger,
+		curVersion: curVersion,
+		interval:   interval,
+		publicKey:  ed25519.PublicKey{33, 205, 244, 215, 215, 31, 28, 203, 59, 249, 116, 219, 21, 42, 227, 2, 147, 46, 39, 118, 144, 74, 101, 110, 175, 40, 20, 92, 63, 19, 5, 164},
+		aesKey:     aeskey,
+		verifier:   NewECDSAVerifier(),
+		hosts:      hosts,
+		mutex:      sync.RWMutex{},
+		once:       sync.Once{},
+		logger:     logger,
 	}
 }
 
@@ -339,7 +345,7 @@ func (manager *updateManagr) doUpdate(data []byte, exePath, prefix, version stri
 	return err
 }
 
-func (manager *updateManagr) Run(host string, curVersion string, interval time.Duration) {
+func (manager *updateManagr) AddServer(host string) {
 	manager.mutex.Lock()
 	defer manager.mutex.Unlock()
 	if slices.Contains(manager.hosts, host) {
@@ -347,44 +353,45 @@ func (manager *updateManagr) Run(host string, curVersion string, interval time.D
 	}
 
 	manager.hosts = append(manager.hosts, host)
-	if len(manager.hosts) != 1 {
-		return
-	}
+}
 
-	curVersion = strings.TrimSpace(curVersion)
-	go func() {
-		exePath, _ := os.Executable()
-		filename := filepath.Base(exePath)
-		modName := strings.Split(filename, ".")[0]
-		for {
-			for _, host := range manager.hosts {
-				need, version := manager.needUpdate(host, modName, curVersion)
-				if !need {
-					continue
+func (manager *updateManagr) Run() {
+	manager.once.Do(func() {
+		go func() {
+			exePath, _ := os.Executable()
+			filename := filepath.Base(exePath)
+			modName := strings.Split(filename, ".")[0]
+			for {
+				for _, host := range manager.hosts {
+					need, version := manager.needUpdate(host, modName, manager.curVersion)
+					if !need {
+						continue
+					}
+
+					manager.logger.Printf("curVersion: %v, newVersion: %v, updating", manager.curVersion, version)
+					data, err := manager.fetchPackage(host, modName, version)
+					if err != nil {
+						continue
+					}
+
+					prefix := runtime.GOOS + "-" + runtime.GOARCH + "-" + modName
+					err = manager.doUpdate(data, exePath, prefix, version)
+					if err != nil {
+						continue
+					}
+
+					manager.logger.Print("restarting")
+					err = manager.restart(exePath)
+					if err != nil {
+						manager.logger.Print("restart err:", err)
+					}
 				}
 
-				manager.logger.Printf("curVersion: %v, newVersion: %v, updating", curVersion, version)
-				data, err := manager.fetchPackage(host, modName, version)
-				if err != nil {
-					continue
-				}
-
-				prefix := runtime.GOOS + "-" + runtime.GOARCH + "-" + modName
-				err = manager.doUpdate(data, exePath, prefix, version)
-				if err != nil {
-					continue
-				}
-
-				manager.logger.Print("restarting")
-				err = manager.restart(exePath)
-				if err != nil {
-					manager.logger.Print("restart err:", err)
-				}
+				time.Sleep(manager.interval)
 			}
+		}()
+	})
 
-			time.Sleep(interval)
-		}
-	}()
 }
 
 func (manager *updateManagr) DoUpdate(data []byte, prefix, version string) error {
