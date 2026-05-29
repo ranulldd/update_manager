@@ -450,23 +450,32 @@ func (manager *updateManagr) verify(content []byte, sig []byte) bool {
 }
 
 func (manager *updateManagr) WaitforUpdate() {
+	exePath, _ := os.Executable()
+	updateDir := filepath.Dir(exePath)
+	filename := filepath.Base(exePath)
+	oldPath := filepath.Join(updateDir, fmt.Sprintf(".%s.old", filename))
+
 	ppidStr := os.Getenv("update_manager_ppid")
 	if len(ppidStr) == 0 {
+		os.Remove(oldPath)
 		return
 	}
 
 	ppid, err := strconv.Atoi(ppidStr)
 	if err != nil {
+		os.Remove(oldPath)
 		return
 	}
 
 	p, err := process.NewProcess(int32(ppid))
 	if err != nil {
+		os.Remove(oldPath)
 		return
 	}
 
 	for range 10 {
 		if running, err := p.IsRunning(); err != nil || !running {
+			os.Remove(oldPath)
 			return
 		}
 
