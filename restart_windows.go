@@ -23,12 +23,19 @@ func (manager *updateManagr) restart(exePath string) error {
 		return err
 	}
 
+	nullFile, err := os.OpenFile(os.DevNull, os.O_RDWR, 0)
+	if err != nil {
+		nullFile = nil
+	} else {
+		defer nullFile.Close()
+	}
+
 	needHide := isSystemAccount()
 	for {
 		_, err = os.StartProcess(exePath, os.Args, &os.ProcAttr{
 			Dir:   wd,
 			Env:   append(os.Environ(), "update_manager_ppid="+strconv.Itoa(os.Getpid())),
-			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+			Files: []*os.File{nullFile, nullFile, nullFile},
 			Sys:   &syscall.SysProcAttr{HideWindow: needHide},
 		})
 
