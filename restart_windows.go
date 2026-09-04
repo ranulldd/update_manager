@@ -2,10 +2,20 @@ package update_manager
 
 import (
 	"os"
+	"os/user"
 	"strconv"
 	"syscall"
 	"time"
 )
+
+func isSystemAccount() bool {
+	currentUser, err := user.Current()
+	if err != nil {
+		return false
+	}
+
+	return currentUser.Uid == "S-1-5-18"
+}
 
 func (manager *updateManagr) restart(exePath string) error {
 	wd, err := os.Getwd()
@@ -13,12 +23,13 @@ func (manager *updateManagr) restart(exePath string) error {
 		return err
 	}
 
+	needHide := isSystemAccount()
 	for {
 		_, err = os.StartProcess(exePath, os.Args, &os.ProcAttr{
 			Dir:   wd,
 			Env:   append(os.Environ(), "update_manager_ppid="+strconv.Itoa(os.Getpid())),
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
-			Sys:   &syscall.SysProcAttr{HideWindow: true},
+			Sys:   &syscall.SysProcAttr{HideWindow: needHide},
 		})
 
 		if err != nil {
